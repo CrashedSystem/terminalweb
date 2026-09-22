@@ -122,11 +122,18 @@ TW.touchbar = (() => {
     return !document.getElementById('touchbar').classList.contains('hidden');
   }
 
+  function isTouchPrimary() {
+    return (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+      navigator.maxTouchPoints > 0;
+  }
+
   function init() {
     render();
-    // Restore visibility preference
-    let pref = '1';
-    try { pref = localStorage.getItem('terminalweb.touchbar') || '1'; } catch (e) { /* ignore */ }
+    // Mobile (coarse pointer): on-screen keyboard is essential → default shown.
+    // Desktop: real keyboard exists → keep it hidden (the ⌨ toggle re-enables it).
+    let stored = null;
+    try { stored = localStorage.getItem('terminalweb.touchbar'); } catch (e) { /* ignore */ }
+    const pref = stored != null ? stored : (isTouchPrimary() ? '1' : '0');
     if (pref === '0') hide();
   }
 
