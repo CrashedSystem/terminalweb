@@ -119,7 +119,7 @@ scripts/vendor.js   copies xterm bundles from node_modules
 
 ## Troubleshooting
 
-- **Blank terminal / WebGL issues**: renderer falls back to canvas/DOM automatically.
+- **Truecolor / blank terminal**: the canvas renderer is used (the WebGL addon is intentionally not loaded because it quantizes truecolor to its color atlas); it falls back to DOM rendering automatically if canvas fails.
 - **Port in use**: `start.sh` / `start.ps1` detects it and assumes the server is running.
 - **Server log**: `~/.terminalweb/server.log`.
 - **Windows**: requires Node 18+ (node-pty ships prebuilt ConPTY binaries). If the terminal opens but shows prompt only, check `~/.terminalweb/server.err.log`. Custom profiles on Windows must use a real shell (pwsh, powershell, cmd, wsl, ...).
