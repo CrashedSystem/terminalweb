@@ -843,7 +843,7 @@ TW.app = (() => {
         } else {
           newTab(s.defaultProfile);
         }
-        TW.touchbar.show();
+        // Touchbar visibility was decided at init (hidden on desktop by default).
         // Re-fit in case fonts finished loading after pane creation
         requestAnimationFrame(() => fitAll());
       })
@@ -851,7 +851,7 @@ TW.app = (() => {
         console.error('init failed:', err);
         document.getElementById('workspace').innerHTML =
           '<div class="pane-overlay"><div class="ov-title">Cannot reach server</div>' +
-          '<div class="ov-sub">Run ./start.sh in Termux and reload</div></div>';
+          '<div class="ov-sub">Run ./start.sh (Termux) or .\\start.ps1 (Windows) and reload</div></div>';
       });
   }
 
