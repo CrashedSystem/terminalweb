@@ -1,0 +1,10 @@
+node_modules/
+*.log
+
+# test / tooling artifacts — never commit
+.playwright-mcp/
+.playwright-*.png
+*.playwright-*.yml
+terminalweb-check.png
+miku-check*.png
+acrylic-final.png

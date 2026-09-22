@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#0c0c0c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="terminalweb">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>terminalweb</title>
+  <link rel="stylesheet" href="vendor/xterm-xterm.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app">
+    <header id="tabbar">
+      <div id="tabs" role="tablist"></div>
+      <div id="tabbar-actions">
+        <button id="btn-touchbar" class="icon-btn" title="Toggle Touch Keyboard">⌨</button>
+        <button id="btn-sessions" class="icon-btn" title="Sessions">▤</button>
+        <button id="btn-palette" class="icon-btn" title="Command Palette">⌘</button>
+        <button id="btn-settings" class="icon-btn" title="Settings">⚙</button>
+      </div>
+    </header>
+
+    <div id="searchbar" class="hidden">
+      <input id="search-input" type="text" placeholder="Find...">
+      <button id="search-prev" class="icon-btn" title="Previous">▲</button>
+      <button id="search-next" class="icon-btn" title="Next">▼</button>
+      <label class="search-toggle"><input type="checkbox" id="search-regex"> .*</label>
+      <label class="search-toggle"><input type="checkbox" id="search-case"> Aa</label>
+      <label class="search-toggle"><input type="checkbox" id="search-word"> ab|_</label>
+      <button id="search-close" class="icon-btn" title="Close">✕</button>
+    </div>
+
+    <main id="workspace"></main>
+
+    <div id="touchbar" class="hidden"></div>
+
+    <div id="palette" class="hidden">
+      <div id="palette-box">
+        <input id="palette-input" type="text" placeholder="Type a command...">
+        <div id="palette-list"></div>
+      </div>
+    </div>
+
+    <div id="settings-panel" class="hidden">
+      <div id="settings-header">
+        <span>Settings</span>
+        <button id="settings-close" class="icon-btn">✕</button>
+      </div>
+      <div id="settings-body"></div>
+      <div id="settings-footer">
+        <button id="settings-save" class="btn primary">Save</button>
+        <button id="settings-reset" class="btn">Reset</button>
+      </div>
+    </div>
+
+    <div id="context-menu" class="hidden"></div>
+    <div id="toast"></div>
+  </div>
+
+  <script src="vendor/xterm-xterm.js"></script>
+  <script src="vendor/xterm-addon-fit-addon-fit.js"></script>
+  <script src="vendor/xterm-addon-search-addon-search.js"></script>
+  <script src="vendor/xterm-addon-webgl-addon-webgl.js"></script>
+  <script src="vendor/xterm-addon-unicode11-addon-unicode11.js"></script>
+  <script src="vendor/xterm-addon-serialize-addon-serialize.js"></script>
+  <script src="vendor/xterm-addon-unicode-graphemes-addon-unicode-graphemes.js"></script>
+
+  <script src="js/util.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/keybindings.js"></script>
+  <script src="js/sessions.js"></script>
+  <script src="js/terminal.js"></script>
+  <script src="js/palette.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/touchbar.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // Register service worker for PWA install + offline shell
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((err) => {
+          console.warn('SW registration failed:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

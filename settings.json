@@ -1,0 +1,35 @@
+{
+  "port": 8080,
+  "token": "",
+  "defaultProfile": "bash",
+  "profiles": [
+    {
+      "id": "bash",
+      "name": "bash",
+      "icon": "🐚",
+      "command": "bash",
+      "cwd": "~",
+      "scheme": "Miku"
+    }
+  ],
+  "schemes": {},
+  "theme": {
+    "mode": "dark",
+    "opacity": 0.5,
+    "backgroundImage": "images/miku.png"
+  },
+  "font": {
+    "family": "Iosevka, Pretendard-Term, monospace",
+    "size": 12,
+    "lineHeight": 1.2,
+    "ligatures": true,
+    "cursorStyle": "block",
+    "cursorBlink": true
+  },
+  "scrollback": 10000,
+  "keybindings": {},
+  "bell": {
+    "visual": true,
+    "audio": true
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "terminalweb",
+  "short_name": "terminalweb",
+  "description": "Self-hosted web terminal for Termux with tabs, split panes and persistent tmux sessions",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c0c0c",
+  "theme_color": "#0c0c0c",
+  "categories": ["developer", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
