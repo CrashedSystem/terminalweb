@@ -61,14 +61,9 @@ TW.terminal = (() => {
       term.unicode.activeVersion = 'graphemes';
     } catch (e) { /* optional */ }
 
-    // WebGL renderer with canvas fallback
-    try {
-      const webgl = new WebglAddon.WebglAddon();
-      webgl.onContextLoss(() => webgl.dispose());
-      term.loadAddon(webgl);
-    } catch (e) {
-      // Canvas/DOM renderer fallback
-    }
+    // Canvas renderer is the default and paints per-cell RGB exactly.
+    // The WebGL addon is intentionally NOT loaded: it quantizes truecolor
+    // (SGR 38;2) down to its 256-color atlas, breaking 24-bit output.
 
     // The passed container IS the styled .xterm-host — open directly.
     // (Creating a second wrapper here caused fitAddon to measure a stale,

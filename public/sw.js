@@ -1,7 +1,7 @@
 'use strict';
 /* sw.js — terminalweb service worker: app-shell cache, offline fallback, API bypass */
 
-const CACHE = 'terminalweb-v21';
+const CACHE = 'terminalweb-v22';
 
 const ASSETS = [
   '/',
@@ -21,7 +21,6 @@ const ASSETS = [
   '/vendor/xterm-xterm.css',
   '/vendor/xterm-addon-fit-addon-fit.js',
   '/vendor/xterm-addon-search-addon-search.js',
-  '/vendor/xterm-addon-webgl-addon-webgl.js',
   '/vendor/xterm-addon-unicode11-addon-unicode11.js',
   '/vendor/xterm-addon-serialize-addon-serialize.js',
   '/vendor/xterm-addon-unicode-graphemes-addon-unicode-graphemes.js',
