@@ -208,6 +208,9 @@ TW.app = (() => {
     pane.term.onBell(() => {
       if (state.settings.bell.visual) ringBell(pane);
       if (state.settings.bell.audio) beep();
+      // Tab is hidden (another tab / window focused, or app backgrounded)?
+      // Then surface an OS native notification so the bell is never missed.
+      if (state.settings.bell.notify && document.hidden) notifyBell(pane);
     });
     pane.term.onSelectionChange(() => {
       if (pane.term.hasSelection()) TW.util.copyText(pane.term.getSelection());
@@ -297,6 +300,33 @@ TW.app = (() => {
     pane.bell.classList.remove('ringing');
     void pane.bell.offsetWidth;
     pane.bell.classList.add('ringing');
+  }
+
+  /* OS-native notification when the bell rings while the app/tab is hidden.
+     Uses the Web Notification API (works even when another tab is focused or
+     the window is minimized — no Service Worker round-trip needed). */
+  function notifyBell(pane) {
+    const title = pane.name && state.tabs.length ? pane.name : 'terminal?';
+    try {
+      if (window.Notification && Notification.permission === 'granted') {
+        const n = new Notification(`${TW.util.projectName} ▸ ${title}`, {
+          body: pane.term.buffer.active ? 'Bell — terminal wants your attention' : 'Bell',
+          tag: `bell-${pane.id}`,
+          icon: state.settings.theme.backgroundImage || '/images/miku.png',
+        });
+        n.addEventListener('click', () => {
+          n.close();
+          window.focus();
+          focusedPaneFocus(state.tabs, state.activeTabId);
+          setActivePane(state.tabs.find((t) => t.id === state.activeTabId), pane);
+        });
+        setTimeout(() => n.close(), 8000);
+      } else if (window.Notification && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    } catch (e) {
+      // Notifications unsupported (private mode / iOS) — silently skip.
+    }
   }
 
   function beep() {

@@ -100,6 +100,7 @@ TW.settingsUI = (() => {
     sec.appendChild(TW.util.el('div', { class: 'set-hint', text: 'Scrollback applies to new terminals.' }));
     sec.appendChild(row('Bell (visual)', checkInput(s.bell.visual, (v) => { s.bell.visual = v; onChange(); })));
     sec.appendChild(row('Bell (audio)', checkInput(s.bell.audio, (v) => { s.bell.audio = v; onChange(); })));
+    sec.appendChild(row('Bell (notify)', checkInput(!!s.bell.notify, (v) => { s.bell.notify = v; onChange(); })));
     return sec;
   }
 

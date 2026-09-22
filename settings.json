@@ -15,7 +15,7 @@
   "schemes": {},
   "theme": {
     "mode": "dark",
-    "opacity": 0.5,
+    "opacity": 0.65,
     "backgroundImage": "images/miku.png"
   },
   "font": {
@@ -30,6 +30,7 @@
   "keybindings": {},
   "bell": {
     "visual": true,
-    "audio": true
+    "audio": true,
+    "notify": true
   }
 }

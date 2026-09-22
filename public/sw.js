@@ -1,7 +1,7 @@
 'use strict';
 /* sw.js — terminalweb service worker: app-shell cache, offline fallback, API bypass */
 
-const CACHE = 'terminalweb-v19';
+const CACHE = 'terminalweb-v20';
 
 const ASSETS = [
   '/',
