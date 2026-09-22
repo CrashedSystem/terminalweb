@@ -1,11 +1,12 @@
 {
   "name": "terminalweb",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Web-based mobile terminal for Termux with Windows Terminal parity",
   "main": "server/index.js",
   "type": "commonjs",
   "scripts": {
     "start": "node server/index.js",
+    "install:all": "npm install && node scripts/vendor.js",
     "install:vendor": "node scripts/vendor.js"
   },
   "dependencies": {

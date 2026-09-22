@@ -84,11 +84,14 @@ class SessionManager {
       try { s.pty.kill(); } catch (e) { /* already dead */ }
       this.sessions.delete(id);
     }
-    execFile('tmux', ['kill-session', '-t', `tw-${id}`], () => {});
+    if (ptyWrap.supportsTmux) {
+      execFile('tmux', ['kill-session', '-t', `tw-${id}`], () => {});
+    }
   }
 
-  /** List live tmux session ids (tw-* prefix). */
+  /** List live session ids (tmux sessions on POSIX, in-memory sessions on win32). */
   list(cb) {
+    if (!ptyWrap.supportsTmux) return cb([...this.sessions.keys()]);
     execFile('tmux', ['list-sessions', '-F', '#{session_name}'], (err, stdout) => {
       if (err) return cb([]);
       const names = String(stdout)
