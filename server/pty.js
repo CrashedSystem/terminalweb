@@ -24,6 +24,21 @@ function expandHome(p) {
   return p;
 }
 
+/**
+ * Environment for spawned shells.
+ * - TERM: xterm-256color (broad compatibility)
+ * - COLORTERM: truecolor → tells color-aware apps (vim, ls --color, etc.)
+ *   they may emit 24-bit SGR sequences, which xterm.js renders natively.
+ */
+function ttyEnv(profile) {
+  return {
+    ...process.env,
+    TERM: 'xterm-256color',
+    COLORTERM: 'truecolor',
+    ...(profile.env || {}),
+  };
+}
+
 /** Spawn the profile shell directly (win32, no tmux). */
 function spawnWinSession({ profile, cols, rows }) {
   let exe = shells.resolveWinShell(profile.command);
@@ -31,7 +46,7 @@ function spawnWinSession({ profile, cols, rows }) {
   const name = path.basename(exe.toLowerCase());
   const args = [];
   if (name.startsWith('pwsh') || name.startsWith('powershell')) args.push('-NoLogo');
-  const env = { ...process.env, TERM: 'xterm-256color', ...(profile.env || {}) };
+  const env = ttyEnv(profile);
   const cwd = expandHome(profile.cwd) || os.homedir();
   return pty.spawn(exe, args, { name: 'xterm-256color', cols, rows, cwd, env });
 }
@@ -54,7 +69,7 @@ function spawnSession({ id, profile, cols, rows }) {
     '-y', String(rows),
     shell,
   ];
-  const env = { ...process.env, TERM: 'xterm-256color', ...(profile.env || {}) };
+  const env = ttyEnv(profile);
   const cwd = expandHome(profile.cwd) || os.homedir();
 
   return pty.spawn('tmux', args, {
