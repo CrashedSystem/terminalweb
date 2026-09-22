@@ -123,18 +123,23 @@ TW.touchbar = (() => {
   }
 
   function isTouchPrimary() {
-    return (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
-      navigator.maxTouchPoints > 0;
+    // Phone/tablet-like: primary pointer is coarse AND hover is not supported.
+    // Touchscreen laptops (fine pointer) are treated as desktop — no touchbar.
+    return !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
   }
 
   function init() {
     render();
-    // Mobile (coarse pointer): on-screen keyboard is essential → default shown.
-    // Desktop: real keyboard exists → keep it hidden (the ⌨ toggle re-enables it).
+    if (!isTouchPrimary()) {
+      // Desktop: physical keyboard is the input device — the on-screen keys only
+      // waste space. Stay hidden unconditionally (the ⌨ button still toggles it).
+      hide();
+      return;
+    }
+    // Mobile: restore the user's last-choice (default: shown).
     let stored = null;
     try { stored = localStorage.getItem('terminalweb.touchbar'); } catch (e) { /* ignore */ }
-    const pref = stored != null ? stored : (isTouchPrimary() ? '1' : '0');
-    if (pref === '0') hide();
+    if (stored === '0') hide();
   }
 
   return { init, show, hide, toggle, isVisible, render, getSticky, consumeSticky };

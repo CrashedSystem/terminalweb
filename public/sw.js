@@ -1,7 +1,7 @@
 'use strict';
 /* sw.js — terminalweb service worker: app-shell cache, offline fallback, API bypass */
 
-const CACHE = 'terminalweb-v20';
+const CACHE = 'terminalweb-v21';
 
 const ASSETS = [
   '/',
@@ -69,17 +69,20 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Static assets: cache-first with runtime caching
+  // Static assets: stale-while-revalidate — serve the cached copy (offline shell)
+  // while re-fetching in the background so updates appear on the next reload.
   e.respondWith(
     caches.match(req).then((hit) => {
-      if (hit) return hit;
-      return fetch(req).then((res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
-        return res;
-      });
+      const revalidate = fetch(req)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => hit);
+      return hit || revalidate;
     })
   );
 });
