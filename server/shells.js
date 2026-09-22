@@ -64,7 +64,7 @@ function winProfiles() {
   if (!IS_WIN) return [];
   return WIN_CANDIDATES
     .filter((c) => { const exe = c.exe(); return exe && fs.existsSync(exe); })
-    .map((c) => ({ id: c.id, name: c.name, icon: c.icon, command: c.exe(), cwd: '~', scheme: 'Campbell' }));
+    .map((c) => ({ id: c.id, name: c.name, icon: c.icon, command: c.exe(), cwd: '~', scheme: 'Campbell', runtime: true }));
 }
 
 module.exports = { IS_WIN, resolveWinShell, winProfiles, findInPath };

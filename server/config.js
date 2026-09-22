@@ -75,8 +75,17 @@ function load() {
   return cfg;
 }
 
+/**
+ * Persist settings. Runtime-injected profiles (e.g. the win32 native shells
+ * added at load time) are stripped so the UI never writes machine-specific
+ * paths into settings.json — they are re-added on the next load().
+ */
 function save(settings) {
-  const json = JSON.stringify(settings, null, 2);
+  const clean = { ...settings };
+  if (Array.isArray(clean.profiles)) {
+    clean.profiles = clean.profiles.filter((p) => !p.runtime);
+  }
+  const json = JSON.stringify(clean, null, 2);
   fs.writeFileSync(SETTINGS_PATH, json);
   return json;
 }
