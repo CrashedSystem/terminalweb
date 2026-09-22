@@ -2,18 +2,24 @@
 /**
  * config.js — settings load/merge/save + profile resolution.
  * User settings live in settings.json (project root), merged over defaults.
+ * On win32 the defaults additionally expose native shells (pwsh / PowerShell / cmd)
+ * and the default profile falls back to the first shell that actually exists.
  */
 const fs = require('fs');
 const path = require('path');
+const shells = require('./shells');
 
 const SETTINGS_PATH = path.join(__dirname, '..', 'settings.json');
+
+const IS_WIN = shells.IS_WIN;
 
 const DEFAULTS = {
   port: 8080,
   token: '',
-  defaultProfile: 'bash',
+  defaultProfile: IS_WIN ? 'pwsh' : 'bash',
   profiles: [
-    { id: 'bash', name: 'bash', icon: '🐚', command: 'bash', cwd: '~', scheme: 'One Half Dark' }
+    { id: 'bash', name: 'bash', icon: '🐚', command: 'bash', cwd: '~', scheme: 'One Half Dark' },
+    ...shells.winProfiles(),
   ],
   schemes: {},
   theme: { mode: 'dark', opacity: 1.0, backgroundImage: '' },
@@ -39,6 +45,22 @@ function deepMerge(base, override) {
   return out;
 }
 
+/** On win32, ensure native shell profiles exist and defaultProfile points at a real shell. */
+function finalizeWin(cfg) {
+  const winProfiles = shells.winProfiles();
+  for (const wp of winProfiles) {
+    if (!cfg.profiles.some((p) => p.id === wp.id)) cfg.profiles.push(wp);
+  }
+  const def = cfg.profiles.find((p) => p.id === cfg.defaultProfile);
+  if (!def || !shells.resolveWinShell(def.command)) {
+    const fallback = winProfiles[0];
+    if (fallback) {
+      if (!cfg.profiles.some((p) => p.id === fallback.id)) cfg.profiles.push(fallback);
+      cfg.defaultProfile = fallback.id;
+    }
+  }
+}
+
 function load() {
   let user = {};
   if (fs.existsSync(SETTINGS_PATH)) {
@@ -48,7 +70,9 @@ function load() {
       console.error(`[config] settings.json parse error: ${e.message}`);
     }
   }
-  return deepMerge(DEFAULTS, user);
+  const cfg = deepMerge(DEFAULTS, user);
+  if (IS_WIN) finalizeWin(cfg);
+  return cfg;
 }
 
 function save(settings) {

@@ -18,7 +18,7 @@ Runs on `localhost` only — no LAN exposure. Sessions persist across server/bro
 - **Mobile optimized** — 2-row touch keyboard (modifiers, navigation, 32 shell symbols with Ctrl/Alt sticky combos), pinch zoom, keyboard avoidance, toggleable via ⌨ button
 - **PWA** — installable, offline app shell
 - **PWA** — installable (standalone), offline app shell via service worker, icons included
-- **Persistence** — tmux-backed sessions survive server restarts; killed only by user action
+- **Persistence** — tmux-backed sessions survive server restarts (POSIX); killed only by user action. On Windows sessions run for the lifetime of the server process (tmux is not available).
 
 ## Quick Start
 
@@ -33,6 +33,22 @@ Open `http://localhost:8080` in Android Chrome.
 **Install as app**: Chrome menu → "Add to Home screen" (or "Install app"). The app runs standalone with its own icon; the shell loads even when the server is offline.
 
 Stop: `./stop.sh` (tmux sessions survive).
+
+## Windows (desktop) Quick Start
+
+Run from PowerShell 7+ (or `npm install --no-audit --no-fund && npm run install:vendor` manually):
+
+```powershell
+cd C:\path\to\terminalweb
+.\install.ps1   # npm deps + vendor bundles (no tmux config — not needed)
+.\start.ps1     # starts server in background (idempotent)
+```
+
+Open `http://localhost:8080` in your browser. `npm start` also works.
+
+Stop: `.\stop.ps1` — note that sessions are NOT preserved across restarts on Windows (no tmux persistence).
+
+**Shells**: the server auto-detects and prefers `pwsh` (PowerShell 7), then Windows PowerShell, then `cmd`. The default profile and Settings-panel profiles are selected accordingly; any unavailable shell (e.g. `bash` without WSL) falls back to the first available Windows shell. Custom shells like `wsl` work too — just set the profile `command` in settings.
 
 ## Auto-Start
 
@@ -85,10 +101,11 @@ Edit `settings.json` (server reads it at startup; the Settings panel in the UI w
 ```
 server/
   index.js     HTTP + WebSocket entry, token auth, graceful shutdown
-  pty.js       tmux-backed PTY spawn (new-session -A, history-limit 0)
+  pty.js       PTY spawn — tmux-backed (POSIX) or direct shell via ConPTY (Windows)
+  shells.js    Windows shell resolution (pwsh / PowerShell / cmd, PATH lookup)
   sessions.js  session attach/detach/kill/list
   api.js       REST: /api/health /api/settings /api/sessions /api/session/:id
-  config.js    settings.json merge with defaults
+  config.js    settings.json merge with defaults (platform-aware profiles)
   tmux.conf    tmux options (status off, mouse on, xterm-256color)
 public/
   index.html, manifest.json, sw.js, css/app.css
@@ -103,8 +120,9 @@ scripts/vendor.js   copies xterm bundles from node_modules
 ## Troubleshooting
 
 - **Blank terminal / WebGL issues**: renderer falls back to canvas/DOM automatically.
-- **Port in use**: `start.sh` detects it and assumes the server is running.
+- **Port in use**: `start.sh` / `start.ps1` detects it and assumes the server is running.
 - **Server log**: `~/.terminalweb/server.log`.
+- **Windows**: requires Node 18+ (node-pty ships prebuilt ConPTY binaries). If the terminal opens but shows prompt only, check `~/.terminalweb/server.err.log`. Custom profiles on Windows must use a real shell (pwsh, powershell, cmd, wsl, ...).
 - **Ligatures**: `@xterm/addon-ligatures` is ESM-only and desktop-oriented, so the toggle is a no-op; font falls back to monospace.
 - **Scrollback on reconnect**: tmux `history-limit 0` means xterm.js owns scrollback; buffer resets on reconnect (accepted trade-off).
 

@@ -64,8 +64,9 @@ TW.settingsUI = (() => {
       sec.appendChild(card);
     });
     const addBtn = TW.util.el('button', { class: 'btn small', text: '+ Add profile' });
+    const defaultCmd = (s.profiles.find((p) => p.id === s.defaultProfile) || {}).command || 'bash';
     addBtn.addEventListener('click', () => {
-      s.profiles.push({ id: 'p' + Date.now(), name: 'New', icon: '▸', command: 'bash', cwd: '~', scheme: 'Campbell' });
+      s.profiles.push({ id: 'p' + Date.now(), name: 'New', icon: '▸', command: defaultCmd, cwd: '~', scheme: 'Campbell' });
       render();
     });
     sec.appendChild(addBtn);

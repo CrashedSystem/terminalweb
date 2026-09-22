@@ -17,7 +17,7 @@ function router() {
   const r = express.Router();
 
   r.get('/health', (req, res) => {
-    res.json({ ok: true, name: 'terminalweb', version: '0.1.0' });
+    res.json({ ok: true, name: 'terminalweb', version: '0.2.0' });
   });
 
   r.get('/sessions', (req, res) => {
