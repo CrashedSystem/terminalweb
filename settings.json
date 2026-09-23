@@ -20,8 +20,8 @@
   },
   "font": {
     "family": "Iosevka, Pretendard-Term, monospace",
-    "size": 12,
-    "lineHeight": 1.2,
+    "size": 10,
+    "lineHeight": 1.0,
     "ligatures": true,
     "cursorStyle": "block",
     "cursorBlink": true
