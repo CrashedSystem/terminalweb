@@ -26,7 +26,7 @@ const DEFAULTS = {
   font: { family: 'monospace', size: 14, lineHeight: 1.2, ligatures: true, cursorStyle: 'block', cursorBlink: false },
   scrollback: 10000,
   keybindings: {},
-  bell: { visual: true, audio: false }
+  bell: { visual: true, audio: false, notify: true }
 };
 
 function isPlainObject(v) {

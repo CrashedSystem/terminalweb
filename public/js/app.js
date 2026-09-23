@@ -208,9 +208,10 @@ TW.app = (() => {
     pane.term.onBell(() => {
       if (state.settings.bell.visual) ringBell(pane);
       if (state.settings.bell.audio) beep();
-      // A bell char always raises an OS notification — even with the tab
-      // focused/visible (matches the old termux-api alerts).
-      notifyBell(pane);
+      // Raised even with the tab focused/visible (matches the old termux-api
+      // alerts) — but honor the "Bell (notify)" toggle, which the settings UI
+      // exposed while this call ignored it entirely.
+      if (state.settings.bell.notify) notifyBell(pane);
     });
     pane.term.onSelectionChange(() => {
       if (pane.term.hasSelection()) TW.util.copyText(pane.term.getSelection());
@@ -309,6 +310,15 @@ TW.app = (() => {
      the page being backgrounded and works from an installed PWA), falling
      back to the direct Notification constructor. Clicking the SW notification
      reopens/focuses the app via the global 'focus-pane' message listener. */
+  // Surface *why* a notification didn't appear instead of failing silently —
+  // a denied permission used to look exactly like "the bell is broken".
+  let permWarned = false;
+  function warnNotifications(msg) {
+    if (permWarned) return;
+    permWarned = true;
+    TW.util.toast(msg);
+  }
+
   function notifyBell(pane) {
     const title = (pane.title && pane.title !== '' ? pane.title : 'terminal') + '';
     const body = 'Bell — terminal wants your attention';
@@ -319,8 +329,16 @@ TW.app = (() => {
         if (Notification.permission === 'default') {
           try {
             const p = Notification.requestPermission();
-            if (p && p.catch) p.catch(() => { /* ignore */ });
+            if (p && p.then) {
+              p.then((r) => {
+                if (r !== 'granted') warnNotifications('Bell notifications not allowed — allow them in the address bar.');
+              }).catch(() => { /* ignore */ });
+            } else if (p && p.catch) {
+              p.catch(() => { /* ignore */ });
+            }
           } catch (e) { /* ignore */ }
+        } else {
+          warnNotifications('Notifications are blocked for this site — allow them in the address bar.');
         }
         return; // can't show before permission is granted
       }
@@ -348,7 +366,16 @@ TW.app = (() => {
         setTimeout(() => n.close(), 8000);
       };
       if (swReady) {
-        swReady.then((reg) => reg.showNotification(`${TW.util.projectName} ▸ ${title}`, notifyOpts)).catch(() => viaPage());
+        // `navigator.serviceWorker.ready` never rejects and never settles when
+        // no service worker is active. Without this timeout the page-level
+        // fallback below could never run, so notifications vanished silently.
+        const swNotify = swReady.then((reg) =>
+          reg.showNotification(`${TW.util.projectName} ▸ ${title}`, notifyOpts)
+        );
+        const timeout = new Promise((resolve, reject) =>
+          setTimeout(() => reject(new Error('sw ready timeout')), 1500)
+        );
+        Promise.race([swNotify, timeout]).catch(() => viaPage());
       } else {
         viaPage();
       }
@@ -362,7 +389,15 @@ TW.app = (() => {
   // interacts. Reuse one shared context and resume it on the first
   // touch/keypress so later beeps are actually audible.
   function unlockAudio() {
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    try {
+      // Create the context *during* the gesture: Chrome only starts it running
+      // when the document already has sticky activation. Creating it lazily
+      // inside beep() — which runs off a WebSocket message, not a gesture —
+      // left it suspended, so the bell stayed silent on desktop.
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx && !audioCtx) audioCtx = new Ctx();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) { /* ignore */ }
   }
   function beep() {
     try {
