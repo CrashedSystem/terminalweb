@@ -565,7 +565,23 @@ TW.app = (() => {
     fitAll();
   }
 
-  function setScheme(name) {
+  /** Persist in-memory settings to the server (no reload, no panel close). */
+  async function persistSettings() {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state.settings),
+      });
+      if (!res.ok) throw new Error('save failed');
+      return true;
+    } catch (e) {
+      TW.util.toast('Save failed: ' + e.message);
+      return false;
+    }
+  }
+
+  async function setScheme(name) {
     const tab = getActiveTab();
     if (!tab) return;
     allPanes(tab).forEach((p) => {
@@ -574,7 +590,8 @@ TW.app = (() => {
       TW.terminal.applySettings(p.term, state.settings, name);
     });
     fitAll();
-    TW.util.toast('Scheme: ' + name);
+    // Palette scheme changes used to be memory-only and vanished on reload.
+    if (await persistSettings()) TW.util.toast('Scheme: ' + name);
   }
 
   function toggleTheme() {
@@ -798,6 +815,7 @@ TW.app = (() => {
   async function reloadSettings() {
     const res = await fetch('/api/settings');
     state.settings = await res.json();
+    TW.themes.setCustomSchemes(state.settings.schemes);
     TW.themes.applyUiTheme(state.settings.theme);
     applyBackground();
     state.tabs.forEach((t) => {
@@ -905,6 +923,7 @@ TW.app = (() => {
       .then((r) => r.json())
       .then(async (s) => {
         state.settings = s;
+        TW.themes.setCustomSchemes(s.schemes);
         TW.themes.applyUiTheme(s.theme);
         applyBackground();
         // Wait for web fonts so xterm measures cell metrics with the real font

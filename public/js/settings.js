@@ -59,7 +59,7 @@ TW.settingsUI = (() => {
       card.appendChild(row('Scheme', selectInput(TW.themes.schemeNames(), p.scheme, (v) => { s.profiles[i].scheme = v; onChange(); })));
       card.appendChild(row('Default', checkInput(s.defaultProfile === p.id, (v) => {
         if (v) s.defaultProfile = p.id;
-        onChange();
+        render(); // uncheck the previously-default profile
       })));
       sec.appendChild(card);
     });
@@ -139,12 +139,17 @@ TW.settingsUI = (() => {
   function render() {
     const s = TW.app.getSettings();
     body().innerHTML = '';
-    body().appendChild(renderProfiles(s, () => render()));
-    body().appendChild(renderAppearance(s, () => render()));
-    body().appendChild(renderFont(s, () => render()));
-    body().appendChild(renderTerminal(s, () => render()));
-    body().appendChild(renderKeybindings(s, () => render()));
-    body().appendChild(renderRaw(s, () => render()));
+    // Value edits mutate `s` in place and each control holds its own UI state
+    // — re-rendering here destroyed focus after every keystroke (and wiped
+    // half-typed raw JSON). Structural changes (add / remove / set default)
+    // call render() directly from their own handlers.
+    const onEdit = () => {};
+    body().appendChild(renderProfiles(s, onEdit));
+    body().appendChild(renderAppearance(s, onEdit));
+    body().appendChild(renderFont(s, onEdit));
+    body().appendChild(renderTerminal(s, onEdit));
+    body().appendChild(renderKeybindings(s, onEdit));
+    body().appendChild(renderRaw(s, onEdit));
   }
 
   function open() {

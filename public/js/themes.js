@@ -84,12 +84,28 @@ TW.themes = (() => {
     },
   };
 
+  // User-defined schemes from settings.json ("schemes": { name: { ...colors } }).
+  // Kept separate from SCHEMES so removing one in settings actually removes it.
+  const CUSTOM = {};
+
+  /** Replace the custom scheme set (called whenever settings are (re)loaded). */
+  function setCustomSchemes(schemes) {
+    Object.keys(CUSTOM).forEach((k) => delete CUSTOM[k]);
+    if (!schemes || typeof schemes !== 'object') return;
+    for (const [name, def] of Object.entries(schemes)) {
+      if (!name || !def || typeof def !== 'object') continue;
+      // Fill unspecified colors from One Half Dark so partial definitions work.
+      CUSTOM[name] = { ...SCHEMES['One Half Dark'], ...def };
+    }
+  }
+
   function getScheme(name) {
-    return SCHEMES[name] || SCHEMES['One Half Dark'];
+    return CUSTOM[name] || SCHEMES[name] || SCHEMES['One Half Dark'];
   }
 
   function schemeNames() {
-    return Object.keys(SCHEMES);
+    const custom = Object.keys(CUSTOM).filter((n) => !SCHEMES[n]);
+    return Object.keys(SCHEMES).concat(custom);
   }
 
   // Build xterm theme object from a scheme + opacity
@@ -119,5 +135,5 @@ TW.themes = (() => {
     if (meta) meta.setAttribute('content', mode === 'light' ? '#ffffff' : '#0c0c0c');
   }
 
-  return { SCHEMES, getScheme, schemeNames, toXtermTheme, applyUiTheme };
+  return { SCHEMES, getScheme, schemeNames, setCustomSchemes, toXtermTheme, applyUiTheme };
 })();
