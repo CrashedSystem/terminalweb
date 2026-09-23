@@ -215,73 +215,13 @@ TW.app = (() => {
     pane.term.onSelectionChange(() => {
       if (pane.term.hasSelection()) TW.util.copyText(pane.term.getSelection());
     });
-    // Touch drag → rectangular selection (xterm itself only does mouse-drag
-    // selection; on mobile the gesture is consumed as scroll). We translate
-    // pointer events to cell coordinates and feed them to term.select(), so a
-    // finger drag both selects AND auto-copies via the onSelectionChange above.
-    let touchDrag = null;
-    function cellAt(clientX, clientY) {
-      const dim = pane.term.dimensions;
-      const r = container.getBoundingClientRect();
-      return {
-        col: Math.max(0, Math.min(dim.cols - 1, Math.floor((clientX - r.left) / dim.actualCellWidth))),
-        row: Math.max(0, Math.min(dim.rows - 1, Math.floor((clientY - r.top) / dim.actualCellHeight))),
-      };
-    }
-    container.addEventListener('pointerdown', (e) => {
-      if (e.pointerType !== 'touch') return; // mouse keeps xterm's native drag
-      if (e.button !== 0 && e.pointerType === 'touch') return;
-      touchDrag = { a: cellAt(e.clientX, e.clientY), live: true };
-      container.setPointerCapture(e.pointerId);
-    });
-    container.addEventListener('pointermove', (e) => {
-      if (!touchDrag || !touchDrag.live || e.pointerType !== 'touch') return;
-      const b = cellAt(e.clientX, e.clientY);
-      const cols = pane.term.dimensions.cols, rows = pane.term.dimensions.rows;
-      const x1 = Math.min(touchDrag.a.col, b.col), x2 = Math.max(touchDrag.a.col, b.col);
-      const y1 = Math.min(touchDrag.a.row, b.row), y2 = Math.max(touchDrag.a.row, b.row);
-      pane.term.select(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
-    });
-    const endTouchDrag = (e) => {
-      if (!touchDrag || e.pointerType !== 'touch') return;
-      touchDrag.live = false;
-      touchDrag = null;
-    };
-    container.addEventListener('pointerup', endTouchDrag);
-    container.addEventListener('pointercancel', endTouchDrag);
 
     container.addEventListener('pointerdown', () => { setActivePane(tab, pane, false); });
-    // Touch drag → rectangular selection + auto-copy. xterm's own *mouse*
-    // drag already selects (and our onSelectionChange above copies). But a
-    // finger drag is consumed by the browser as a scroll, so we translate
-    // pointer events to cell coordinates and feed them to pane.term.select(),
-    // which fires onSelectionChange → auto-copy. Works for both rect drag and
-    // plain touch-tap (tap = 1×1 cell, still copied).
-    let touchAnchor = null;
-    function cellAtPx(clientX, clientY) {
-      const d = pane.term.dimensions;
-      const r = container.getBoundingClientRect();
-      const col = Math.max(0, Math.min(d.cols - 1, Math.floor((clientX - r.left) / d.actualCellWidth)));
-      const row = Math.max(0, Math.min(d.rows - 1, Math.floor((clientY - r.top) / d.actualCellHeight)));
-      return { col, row };
-    }
-    container.addEventListener('pointerdown', (e) => {
-      if (e.pointerType !== 'touch') return; // mouse = xterm's native drag
-      touchAnchor = cellAtPx(e.clientX, e.clientY);
-      try { container.setPointerCapture(e.pointerId); } catch (_) {}
+    container.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e.clientX, e.clientY, pane);
     });
-    container.addEventListener('pointermove', (e) => {
-      if (!touchAnchor || e.pointerType !== 'touch') return;
-      const b = cellAtPx(e.clientX, e.clientY);
-      const x1 = Math.min(touchAnchor.col, b.col), x2 = Math.max(touchAnchor.col, b.col);
-      const y1 = Math.min(touchAnchor.row, b.row), y2 = Math.max(touchAnchor.row, b.row);
-      pane.term.select(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
-    });
-    const clearTouchAnchor = () => { touchAnchor = null; };
-    container.addEventListener('pointerup', clearTouchAnchor);
-    container.addEventListener('pointercancel', clearTouchDrag);
-    
-attachPinch(container, pane);
+    attachPinch(container, pane);
 
     // Session client callbacks
     pane.onOutput = (data) => pane.term.write(data);
