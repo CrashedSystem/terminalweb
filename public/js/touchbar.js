@@ -44,24 +44,79 @@ TW.touchbar = (() => {
       text: k.label,
       tabindex: -1,
     });
-    btn.addEventListener('click', () => {
-      if (k.sticky) {
+
+    // Sticky modifier keys: tap toggles Ctrl/Alt — never repeat.
+    if (k.sticky) {
+      btn.addEventListener('click', () => {
         sticky = sticky === k.sticky ? null : k.sticky;
         updateStickyUI();
         flash(btn);
         refocusTerminal();
-        return;
-      }
+      });
+      if (sticky === k.sticky) btn.classList.add('sticky');
+      return btn;
+    }
+
+    // Sequence keys: press sends once; holding past the delay repeats, which
+    // makes arrow/backspace/enter navigation over long output usable.
+    const REPEAT_DELAY = 500; // ms held before auto-repeat starts
+    const REPEAT_RATE = 120;  // ms between repeats
+    let pressTimer = 0;
+    let repeatTimer = 0;
+    let sentByPointer = false;
+    let gestureSticky = false;
+
+    function currentSeq() {
       let seq = k.seq;
       if (sticky === 'ctrl' && k.modSeq) seq = k.modSeq;
       if (sticky === 'alt' && k.altSeq) seq = k.altSeq;
       sticky = null;
       updateStickyUI();
-      send(seq);
+      return seq;
+    }
+    function fire() {
+      send(currentSeq());
       flash(btn);
-      refocusTerminal();
+    }
+    function stopRepeat() {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = 0; }
+      if (repeatTimer) { clearInterval(repeatTimer); repeatTimer = 0; }
+    }
+
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (sentByPointer) stopRepeat();
+      sentByPointer = true;
+      gestureSticky = !!sticky;
+      fire();
+      // Hold → auto-repeat until the finger lifts.
+      pressTimer = setTimeout(() => {
+        const repSeq = currentSeq();
+        const tick = () => { send(repSeq); flash(btn); };
+        tick();
+        repeatTimer = setInterval(tick, REPEAT_RATE);
+      }, REPEAT_DELAY);
+      // Combo (Ctrl/Alt) keys keep the terminal focused — plain keys blur it
+      // so the software keyboard collapses (matches the old behavior).
+      if (gestureSticky) refocusTerminal();
     });
-    if (k.sticky && sticky === k.sticky) btn.classList.add('sticky');
+
+    const release = () => {
+      const wasCombo = gestureSticky;
+      stopRepeat();
+      if (wasCombo) refocusTerminal();
+      else if (sentByPointer) dismissKeyboard();
+    };
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointerleave', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('click', (e) => {
+      if (sentByPointer) { e.preventDefault(); stopRepeat(); return; } // already sent on pointerdown
+      // Accessibility fallback (no pointer events, e.g. keyboard activation).
+      fire();
+      dismissKeyboard();
+    });
+
     return btn;
   }
 
@@ -86,6 +141,14 @@ TW.touchbar = (() => {
     const pane = TW.app.getActivePane();
     if (pane && pane.term) {
       try { pane.term.focus(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  // Close the software keyboard without stealing focus from the touchbar.
+  function dismissKeyboard() {
+    const pane = TW.app.getActivePane();
+    if (pane && pane.term) {
+      try { pane.term.blur(); } catch (e) { /* ignore */ }
     }
   }
 

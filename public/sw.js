@@ -1,7 +1,7 @@
 'use strict';
 /* sw.js — terminalweb service worker: app-shell cache, offline fallback, API bypass */
 
-const CACHE = 'terminalweb-v25';
+const CACHE = 'terminalweb-v35';
 
 const ASSETS = [
   '/',
@@ -43,6 +43,25 @@ self.addEventListener('activate', (e) => {
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
+  );
+});
+
+// Bell notification clicks: focus the tab that rang (or reopen the app).
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const paneId = event.notification.data && event.notification.data.paneId;
+      for (const client of list) {
+        client.postMessage({ type: 'focus-pane', id: paneId });
+        if ('focus' in client) client.focus();
+      }
+      if (!list.length) return self.clients.openWindow('/');
+      // Focus the last-focused window.
+      const last = list[list.length - 1];
+      if ('focus' in last) return last.focus();
+      return null;
+    })
   );
 });
 

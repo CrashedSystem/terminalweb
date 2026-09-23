@@ -11,7 +11,7 @@ PWA로 설치하면 앱 창 + 작업표시줄 아이콘 + 자체 셸(cmd / Power
 | 항목 | 값 |
 |------|----|
 | OS | Windows 10 1809+ (ConPTY 지원) / Windows 11 |
-| 런타임 | Node.js 18+ (https://nodejs.org — LTS 권장) |
+| 런타임 | Node.js 18+ (https://nodejs.org — **20/22 LTS 권장**: node-pty 전처리 바이너리 포함. 다른 버전은 C++ 빌드 도구 필요할 수 있음) |
 | 브라우저 | Microsoft Edge 또는 Chrome (PWA 설치 지원) |
 | 권한 | 로컬 실행이라 방화벽·HTTPS 불필요 |
 
@@ -28,6 +28,10 @@ Git 없으면 GitHub 페이지에서 **Code → Download ZIP** 후 압축 풀어
 
 ## 2단계 — 의존성 + 서버 실행
 
+**가장 쉬운 방법 — `start.bat` 더블클릭:** 첫 실행이면 `npm install` + vendor 번들,
+서버 백그라운드 시작, 기본 브라우저로 `http://localhost:8080` 자동 오픈까지 한 번에.
+
+수동:
 ```
 npm install
 npm start

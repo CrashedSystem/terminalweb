@@ -208,15 +208,15 @@ TW.app = (() => {
     pane.term.onBell(() => {
       if (state.settings.bell.visual) ringBell(pane);
       if (state.settings.bell.audio) beep();
-      // Tab is hidden (another tab / window focused, or app backgrounded)?
-      // Then surface an OS native notification so the bell is never missed.
-      if (state.settings.bell.notify && document.hidden) notifyBell(pane);
+      // A bell char always raises an OS notification — even with the tab
+      // focused/visible (matches the old termux-api alerts).
+      notifyBell(pane);
     });
     pane.term.onSelectionChange(() => {
       if (pane.term.hasSelection()) TW.util.copyText(pane.term.getSelection());
     });
 
-    container.addEventListener('pointerdown', () => setActivePane(tab, pane));
+    container.addEventListener('pointerdown', () => { setActivePane(tab, pane, false); });
     container.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       showContextMenu(e.clientX, e.clientY, pane);
@@ -289,7 +289,9 @@ TW.app = (() => {
       const reconnect = TW.util.el('button', { class: 'btn primary', text: 'Reconnect' });
       reconnect.addEventListener('click', () => reconnectPane(pane));
       const close = TW.util.el('button', { class: 'btn', text: 'Close' });
-      close.addEventListener('click', () => closePane(getActiveTab(), pane));
+      close.addEventListener('click', () => {
+        if (confirmClose(pane.title || '세션')) closePane(getActiveTab(), pane);
+      });
       actions.appendChild(reconnect);
       actions.appendChild(close);
       ov.appendChild(actions);
@@ -302,47 +304,83 @@ TW.app = (() => {
     pane.bell.classList.add('ringing');
   }
 
-  /* OS-native notification when the bell rings while the app/tab is hidden.
-     Uses the Web Notification API (works even when another tab is focused or
-     the window is minimized — no Service Worker round-trip needed). */
+  /* OS-native notification when the bell rings.
+     Uses the Service Worker showNotification() path when available (survives
+     the page being backgrounded and works from an installed PWA), falling
+     back to the direct Notification constructor. Clicking the SW notification
+     reopens/focuses the app via the global 'focus-pane' message listener. */
   function notifyBell(pane) {
-    const title = pane.name && state.tabs.length ? pane.name : 'terminal?';
+    const title = (pane.title && pane.title !== '' ? pane.title : 'terminal') + '';
+    const body = 'Bell — terminal wants your attention';
+    const icon = new URL(state.settings.theme.backgroundImage || 'images/miku.png', location.href).href;
     try {
-      if (window.Notification && Notification.permission === 'granted') {
+      if (!('Notification' in window)) return; // unsupported (private mode / iOS)
+      if (Notification.permission !== 'granted') {
+        if (Notification.permission === 'default') {
+          try {
+            const p = Notification.requestPermission();
+            if (p && p.catch) p.catch(() => { /* ignore */ });
+          } catch (e) { /* ignore */ }
+        }
+        return; // can't show before permission is granted
+      }
+      const notifyOpts = {
+        body,
+        tag: `bell-${pane.id}`,
+        icon,
+        renotify: true,
+        data: { paneId: pane.id },
+      };
+      const swReady = navigator.serviceWorker && navigator.serviceWorker.ready;
+      const viaPage = () => {
         const n = new Notification(`${TW.util.projectName} ▸ ${title}`, {
-          body: pane.term.buffer.active ? 'Bell — terminal wants your attention' : 'Bell',
+          body,
           tag: `bell-${pane.id}`,
-          icon: state.settings.theme.backgroundImage || '/images/miku.png',
+          icon,
+          renotify: true,
         });
         n.addEventListener('click', () => {
           n.close();
           window.focus();
-          focusedPaneFocus(state.tabs, state.activeTabId);
-          setActivePane(state.tabs.find((t) => t.id === state.activeTabId), pane);
+          const tab = state.tabs.find((t) => t.id === state.activeTabId);
+          if (tab) setActivePane(tab, pane);
         });
         setTimeout(() => n.close(), 8000);
-      } else if (window.Notification && Notification.permission === 'default') {
-        Notification.requestPermission();
+      };
+      if (swReady) {
+        swReady.then((reg) => reg.showNotification(`${TW.util.projectName} ▸ ${title}`, notifyOpts)).catch(() => viaPage());
+      } else {
+        viaPage();
       }
     } catch (e) {
-      // Notifications unsupported (private mode / iOS) — silently skip.
+      // Notifications unsupported — silently skip.
     }
   }
 
+  let audioCtx = null;
+  // Autoplay policy: a fresh AudioContext stays suspended until the user
+  // interacts. Reuse one shared context and resume it on the first
+  // touch/keypress so later beeps are actually audible.
+  function unlockAudio() {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
   function beep() {
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
-      const ctx = new Ctx();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
+      if (!Ctx) return;
+      if (!audioCtx) audioCtx = new Ctx();
+      if (!audioCtx) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
       o.connect(g);
-      g.connect(ctx.destination);
+      g.connect(audioCtx.destination);
       o.frequency.value = 880;
       o.type = 'sine';
-      g.gain.setValueAtTime(0.06, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      g.gain.setValueAtTime(0.06, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
       o.start();
-      o.stop(ctx.currentTime + 0.15);
+      o.stop(audioCtx.currentTime + 0.15);
     } catch (e) { /* audio unavailable */ }
   }
 
@@ -377,6 +415,14 @@ TW.app = (() => {
       if (active) fitTab(t);
     });
     renderTabbar();
+  }
+
+  // Accidental ✕ / menu taps kill running shells — make destructive closes
+  // require explicit confirmation. Returns true when the user accepts.
+  function confirmClose(label) {
+    const s = String(label || '세션');
+    const name = s.length > 24 ? s.slice(0, 24) + '…' : s;
+    return window.confirm(`"${name}" 닫을까요?\n실행 중인 셸 세션 작업이 종료됩니다.`);
   }
 
   function closeTab(tab) {
@@ -434,11 +480,11 @@ TW.app = (() => {
     setActivePane(tab, newPane);
   }
 
-  function setActivePane(tab, pane) {
+  function setActivePane(tab, pane, focus = true) {
     tab.activePaneId = pane.id;
     state.activePaneId = pane.id;
     allPanes(tab).forEach((p) => p.container.classList.toggle('focused', p.id === pane.id));
-    pane.term.focus();
+    if (focus) pane.term.focus();
   }
 
   function navigate(tab, paneId, dir) {
@@ -588,8 +634,8 @@ TW.app = (() => {
       { icon: '▤', title: 'Sessions...', action: openSessionsList },
       { icon: '⇅', title: 'Split Horizontal', action: () => splitPane(tab, pane, 'v') },
       { icon: '⇄', title: 'Split Vertical', action: () => splitPane(tab, pane, 'h') },
-      { icon: '✕', title: 'Close Pane', action: () => closePane(tab, pane) },
-      { icon: '✕', title: 'Close Tab', action: () => closeTab(tab) },
+      { icon: '✕', title: 'Close Pane', action: () => { if (confirmClose('Pane')) closePane(tab, pane); } },
+      { icon: '✕', title: 'Close Tab', action: () => { if (confirmClose('Tab')) closeTab(tab); } },
       { icon: '◀', title: 'Previous Tab', action: () => switchTab(-1) },
       { icon: '▶', title: 'Next Tab', action: () => switchTab(1) },
       { icon: '⌕', title: 'Search', action: toggleSearch },
@@ -720,6 +766,7 @@ TW.app = (() => {
       });
       tabEl.querySelector('.tab-close').addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!confirmClose(title)) return;
         closeTab(t);
       });
       tabsEl.appendChild(tabEl);
@@ -795,6 +842,31 @@ TW.app = (() => {
       const action = TW.keybindings.handleKeydown(e, state.settings);
       if (action && ACTIONS[action]) ACTIONS[action]();
     }, true);
+    // Unlock the shared AudioContext on the first real user interaction so the
+    // terminal bell is audible (browser autoplay policy), and ask for
+    // notification permission in the same gesture so bell alerts can fire.
+    function unlockInteraction() {
+      unlockAudio();
+      if (window.Notification && Notification.permission === 'default') {
+        try {
+          const p = Notification.requestPermission();
+          if (p && p.catch) p.catch(() => { /* ignore */ });
+        } catch (e) { /* ignore */ }
+      }
+    }
+    window.addEventListener('pointerdown', unlockInteraction, { capture: true, once: false });
+    window.addEventListener('keydown', unlockInteraction, { capture: true, once: false });
+
+    // Clicking a bell notification reopens/focuses the pane that rang.
+    try {
+      navigator.serviceWorker.addEventListener('message', (ev) => {
+        if (!ev.data || ev.data.type !== 'focus-pane') return;
+        const tab = state.tabs.find((t) => t.id === state.activeTabId);
+        const target = ev.data.id ? findPane(state.tabs, ev.data.id) : null;
+        if (tab && target) setActivePane(tab, target);
+        window.focus();
+      });
+    } catch (e) { /* ignore */ }
 
     // Hide context menu on outside click
     document.addEventListener('pointerdown', (e) => {
